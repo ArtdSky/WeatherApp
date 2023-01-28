@@ -3,14 +3,15 @@ package com.example.weatherapp.ui.screens
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.content.res.Configuration
 import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -32,7 +33,6 @@ fun MainScreen(
     val config = LocalConfiguration.current
     val resources = LocalContext.current.resources
 
-    Log.d("TAG-MAIN SCREEN", config.locales.toString())
 
     Surface {
         Column(
