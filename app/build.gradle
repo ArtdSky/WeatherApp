@@ -48,6 +48,8 @@ android {
 }
 
 dependencies {
+    //Glance
+    implementation("androidx.glance:glance-appwidget:1.0.0-alpha05")
     //Ktor
     def ktor_version = "2.2.2"
     implementation("io.ktor:ktor-client-android:$ktor_version")

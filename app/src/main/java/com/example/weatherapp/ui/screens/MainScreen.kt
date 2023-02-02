@@ -1,15 +1,10 @@
 package com.example.weatherapp.ui.screens
 
 import android.annotation.SuppressLint
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
-import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weatherapp.R
+import com.example.weatherapp.ui.theme.Purple200
 import com.example.weatherapp.viewmodel.MainViewModel
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
@@ -48,7 +44,7 @@ fun MainScreen(
 
     var server by remember { mutableStateOf("weatherApi") }
 
-    val sdf = SimpleDateFormat("dd-MM-yyyy HH:mm:ss")
+    val sdf = SimpleDateFormat("dd.MM.yy HH:mm:ss")
     sdf.timeZone = TimeZone.getTimeZone(UTC)
     var lastUpdate by remember { mutableStateOf("") }
 
@@ -64,10 +60,28 @@ fun MainScreen(
         vm.getWeatherVisualTemp(lat = latitude, lon = longitude)
         lastUpdate = sdf.format(Date())
     }
+    var image by remember { mutableStateOf(R.drawable.temp_neutral) }
+    state.temperature?.let {
+        if (-10 < it.toDouble() && it.toDouble() < 10) {
+            image = R.drawable.temp_neutral
+        }
+        if (-10 > it.toDouble()) {
+            image = R.drawable.temp_cold
+        }
+        if (it.toDouble() > 10) {
+            image = R.drawable.temp_cold
+        }
+    }
 
 
-    Surface {
+    Surface(
+        color = Purple200,
+        modifier = Modifier.fillMaxSize()
 
+    ) {
+
+
+        //Список серверов
         Box(
             contentAlignment = Alignment.TopEnd,
             modifier = Modifier
@@ -124,114 +138,177 @@ fun MainScreen(
                 }
             }
         }
+
+        //Температура и Инфа и иконка
         Column(
-
+            verticalArrangement = Arrangement.Center
         ) {
-            Row {
-                Text(
-                    text = stringResource(R.string.temperature)
-                )
-                Text(
-                    text = state.temperature.toString()
-                )
-            }
-            Row {
-                Text(
-                    text = stringResource(R.string.city)
 
+            //Температура
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.temperature).replaceFirstChar {
+                        if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+                    }
                 )
                 Text(
-                    text = state.city.toString()
-                )
-            }
-            Row {
-                Text(
-                    stringResource(R.string.last_update)
-
-                )
-                Text(
-                    text = lastUpdate
+                    text = state.temperature.toString(),
+                    modifier = Modifier
+                        .padding(start = 12.dp)
                 )
             }
 
-            Icon(
-                imageVector = Icons.Filled.Home,
-                contentDescription = "Иконка с погодой"
-            )
-            Button(
-                onClick = {
-//                    context.createConfigurationContext(context.resources.configuration)
-//                    context.findActivity()?.recreate()
-//                    Log.d("TAG-MAINSCREEN", "button clicked")
-                    if (latitude != null && longitude != null) {
-                        when (server) {
-                            "weatherApi" -> {
-                                vm.getWeatherApiTemp(lat = latitude, lon = longitude)
-                                lastUpdate = sdf.format(Date())
+            //Инфа с иконкой
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(8.dp)
+            ) {
+                // Инфа
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(8.dp)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.Start,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.city).replaceFirstChar {
+                                    if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+                                }
+
+                            )
+                            Text(
+                                text = state.city.toString(),
+                                modifier = Modifier
+                                    .padding(start = 12.dp)
+                            )
+                        }
+                        Column(
+                            horizontalAlignment = Alignment.Start,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.last_update).replaceFirstChar {
+                                    if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+                                }
+
+                            )
+                            Text(
+                                text = lastUpdate,
+                                modifier = Modifier
+                                    .padding(start = 12.dp)
+                            )
+                        }
+                        Button(
+                            onClick = {
+
+                                if (latitude != null && longitude != null) {
+                                    when (server) {
+                                        "weatherApi" -> {
+                                            vm.getWeatherApiTemp(lat = latitude, lon = longitude)
+                                            lastUpdate = sdf.format(Date())
+                                        }
+                                        "openWeather" -> {
+                                            vm.getOpenWeatherTemp(lat = latitude, lon = longitude)
+                                            lastUpdate = sdf.format(Date())
+                                        }
+                                        "weatherVisual" -> {
+                                            vm.getWeatherVisualTemp(lat = latitude, lon = longitude)
+                                            lastUpdate = sdf.format(Date())
+                                        }
+                                    }
+                                }
                             }
-                            "openWeather" -> {
-                                vm.getOpenWeatherTemp(lat = latitude, lon = longitude)
-                                lastUpdate = sdf.format(Date())
-                            }
-                            "weatherVisual" -> {
-                                vm.getWeatherVisualTemp(lat = latitude, lon = longitude)
-                                lastUpdate = sdf.format(Date())
-                            }
+                        ) {
+                            Text(text = stringResource(R.string.button_update))
                         }
                     }
                 }
-            ) {
-                Text(text = stringResource(R.string.button_update))
+                // Иконка
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(8.dp)
+                        .size(100.dp)
+                ) {
+                    Icon(
+                        contentDescription = "Иконка с погодой",
+                        painter = painterResource(image),
+                        tint = Color.Unspecified
+
+                    )
+                }
+
             }
+        }
+        Box(
+            contentAlignment = Alignment.BottomCenter,
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+
             Row {
-                Checkbox(
-                    checked = checkedStateUsa.value,
-                    onCheckedChange = {
-                        config.setLocale(Locale("en"))
-                        resources.updateConfiguration(
-                            context.resources.configuration,
-                            resources.displayMetrics
-                        )
-                        checkedStateUsa.value = it
-                        checkedStateRu.value = false
+                Row {
+                    Checkbox(
+                        checked = checkedStateUsa.value,
+                        onCheckedChange = {
+                            config.setLocale(Locale("en"))
+                            resources.updateConfiguration(
+                                context.resources.configuration,
+                                resources.displayMetrics
+                            )
+                            checkedStateUsa.value = it
+                            checkedStateRu.value = false
 
 
-                    },
-                )
-                Icon(
-                    painter = painterResource(R.drawable.flag_usa),
-                    contentDescription = "Кнопка с иконкой США",
-                    tint = Color.Unspecified
-                )
+                        },
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.flag_usa),
+                        contentDescription = "Кнопка с иконкой США",
+                        tint = Color.Unspecified
+                    )
 
 
+                }
+                Row {
+                    Checkbox(
+                        checked = checkedStateRu.value,
+                        onCheckedChange = {
+                            config.setLocale(Locale("ru"))
+                            resources.updateConfiguration(
+                                context.resources.configuration,
+                                resources.displayMetrics
+                            )
+                            checkedStateRu.value = it
+                            checkedStateUsa.value = false
+                        },
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.flag_russia),
+                        contentDescription = "Кнопка с иконкой России",
+                        tint = Color.Unspecified
+                    )
+                }
             }
-            Row {
-                Checkbox(
-                    checked = checkedStateRu.value,
-                    onCheckedChange = {
-                        config.setLocale(Locale("ru"))
-                        resources.updateConfiguration(
-                            context.resources.configuration,
-                            resources.displayMetrics
-                        )
-                        checkedStateRu.value = it
-                        checkedStateUsa.value = false
-                    },
-                )
-                Icon(
-                    painter = painterResource(R.drawable.flag_russia),
-                    contentDescription = "Кнопка с иконкой России",
-                    tint = Color.Unspecified
-                )
-            }
-
         }
     }
 }
 
-fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}
+
