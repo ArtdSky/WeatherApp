@@ -2,10 +2,17 @@ package com.example.weatherapp.ui.screens
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,20 +24,21 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weatherapp.R
-import com.example.weatherapp.ui.theme.Purple200
 import com.example.weatherapp.viewmodel.MainViewModel
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
 import java.time.ZoneOffset.UTC
 import java.util.*
 
+@OptIn(ExperimentalMaterialApi::class)
 @SuppressLint("SimpleDateFormat")
 @Composable
 fun MainScreen(
     vm: MainViewModel = koinViewModel()
 ) {
 
-
+//Base data
     val state by vm.viewState.collectAsState()
     val checkedStateRu = remember { mutableStateOf(false) }
     val checkedStateUsa = remember { mutableStateOf(false) }
@@ -72,243 +80,281 @@ fun MainScreen(
             image = R.drawable.temp_cold
         }
     }
-
-
-    Surface(
-        color = Purple200,
-        modifier = Modifier.fillMaxSize()
-
-    ) {
-
-
-        //Список серверов
-        Box(
-            contentAlignment = Alignment.TopEnd,
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            Box() {
-                IconButton(
-                    onClick = { expanded = !expanded }
-                ) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Показать меню")
+// Pull-to refresh
+    val refreshScope = rememberCoroutineScope()
+    var refreshing by remember { mutableStateOf(false) }
+    fun refresh() = refreshScope.launch {
+        refreshing = true
+        if (latitude != null && longitude != null) {
+            when (server) {
+                "weatherApi" -> {
+                    vm.getWeatherApiTemp(lat = latitude, lon = longitude)
+                    lastUpdate = sdf.format(Date())
                 }
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    Text(
-                        "Сервер1",
-                        fontSize = 18.sp,
-                        modifier = Modifier
-                            .padding(10.dp)
-                            .clickable(onClick = {
-                                if (latitude != null && longitude != null) {
-                                    vm.getWeatherApiTemp(lat = latitude, lon = longitude)
-                                    server = "weatherApi"
-                                }
-                            })
-                    )
-                    Divider()
-                    Text(
-                        "Сервер2",
-                        fontSize = 18.sp,
-                        modifier = Modifier
-                            .padding(10.dp)
-                            .clickable(onClick = {
-                                if (latitude != null && longitude != null) {
-                                    vm.getOpenWeatherTemp(lat = latitude, lon = longitude)
-                                    server = "openWeather"
-                                }
-                            })
-                    )
-                    Divider()
-                    Text(
-                        "Сервер3",
-                        fontSize = 18.sp,
-                        modifier = Modifier
-                            .padding(10.dp)
-                            .clickable(onClick = {
-                                if (latitude != null && longitude != null) {
-                                    vm.getWeatherVisualTemp(lat = latitude, lon = longitude)
-                                    server = "weatherVisual"
-                                }
-                            })
-                    )
+                "openWeather" -> {
+                    vm.getOpenWeatherTemp(lat = latitude, lon = longitude)
+                    lastUpdate = sdf.format(Date())
+                }
+                "weatherVisual" -> {
+                    vm.getWeatherVisualTemp(lat = latitude, lon = longitude)
+                    lastUpdate = sdf.format(Date())
                 }
             }
         }
+        refreshing = false
+    }
+    val refreshState = rememberPullRefreshState(refreshing = refreshing, onRefresh = ::refresh)
 
-        //Температура и Инфа и иконка
-        Column(
-            verticalArrangement = Arrangement.Center
-        ) {
-
-            //Температура
-            Row(
-                horizontalArrangement = Arrangement.Center,
+    Box(Modifier.pullRefresh(refreshState)) {
+        if (!refreshing) {
+            Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.temperature).replaceFirstChar {
-                        if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
-                    }
-                )
-                Text(
-                    text = state.temperature.toString(),
-                    modifier = Modifier
-                        .padding(start = 12.dp)
-                )
-            }
+                    .fillMaxSize()
+                    .verticalScroll(state = rememberScrollState())
 
-            //Инфа с иконкой
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(8.dp)
             ) {
-                // Инфа
+                //Список серверов
                 Box(
-                    contentAlignment = Alignment.Center,
+                    contentAlignment = Alignment.TopEnd,
                     modifier = Modifier
-                        .weight(1f)
-                        .padding(8.dp)
+                        .fillMaxWidth()
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.Start
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.Start,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
+                    Box() {
+                        IconButton(
+                            onClick = { expanded = !expanded }
+                        ) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Показать меню")
+                        }
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
                         ) {
                             Text(
-                                text = stringResource(R.string.city).replaceFirstChar {
-                                    if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
-                                }
-
-                            )
-                            Text(
-                                text = state.city.toString(),
+                                "Сервер1",
+                                fontSize = 18.sp,
                                 modifier = Modifier
-                                    .padding(start = 12.dp)
-                            )
-                        }
-                        Column(
-                            horizontalAlignment = Alignment.Start,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.last_update).replaceFirstChar {
-                                    if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
-                                }
-
-                            )
-                            Text(
-                                text = lastUpdate,
-                                modifier = Modifier
-                                    .padding(start = 12.dp)
-                            )
-                        }
-                        Button(
-                            onClick = {
-
-                                if (latitude != null && longitude != null) {
-                                    when (server) {
-                                        "weatherApi" -> {
+                                    .padding(10.dp)
+                                    .clickable(onClick = {
+                                        if (latitude != null && longitude != null) {
                                             vm.getWeatherApiTemp(lat = latitude, lon = longitude)
-                                            lastUpdate = sdf.format(Date())
+                                            server = "weatherApi"
                                         }
-                                        "openWeather" -> {
+                                    })
+                            )
+                            Divider()
+                            Text(
+                                "Сервер2",
+                                fontSize = 18.sp,
+                                modifier = Modifier
+                                    .padding(10.dp)
+                                    .clickable(onClick = {
+                                        if (latitude != null && longitude != null) {
                                             vm.getOpenWeatherTemp(lat = latitude, lon = longitude)
-                                            lastUpdate = sdf.format(Date())
+                                            server = "openWeather"
                                         }
-                                        "weatherVisual" -> {
+                                    })
+                            )
+                            Divider()
+                            Text(
+                                "Сервер3",
+                                fontSize = 18.sp,
+                                modifier = Modifier
+                                    .padding(10.dp)
+                                    .clickable(onClick = {
+                                        if (latitude != null && longitude != null) {
                                             vm.getWeatherVisualTemp(lat = latitude, lon = longitude)
-                                            lastUpdate = sdf.format(Date())
+                                            server = "weatherVisual"
+                                        }
+                                    })
+                            )
+                        }
+                    }
+                }
+
+                //Температура и Инфа и иконка
+                Column(
+                    verticalArrangement = Arrangement.Center
+                ) {
+
+                    //Температура
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.temperature).replaceFirstChar {
+                                if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+                            }
+                        )
+                        Text(
+                            text = state.temperature.toString(),
+                            modifier = Modifier
+                                .padding(start = 12.dp)
+                        )
+                    }
+
+                    //Инфа с иконкой
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(8.dp)
+                    ) {
+                        // Инфа
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(8.dp)
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.Start
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.Start,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(8.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.city).replaceFirstChar {
+                                            if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+                                        }
+
+                                    )
+                                    Text(
+                                        text = state.city.toString(),
+                                        modifier = Modifier
+                                            .padding(start = 12.dp)
+                                    )
+                                }
+                                Column(
+                                    horizontalAlignment = Alignment.Start,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(8.dp)
+                                ) {
+                                    Text(
+                                        stringResource(R.string.last_update).replaceFirstChar {
+                                            if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+                                        }
+
+                                    )
+                                    Text(
+                                        text = lastUpdate,
+                                        modifier = Modifier
+                                            .padding(start = 12.dp)
+                                    )
+                                }
+                                Button(
+                                    onClick = {
+
+                                        if (latitude != null && longitude != null) {
+                                            when (server) {
+                                                "weatherApi" -> {
+                                                    vm.getWeatherApiTemp(
+                                                        lat = latitude,
+                                                        lon = longitude
+                                                    )
+                                                    lastUpdate = sdf.format(Date())
+                                                }
+                                                "openWeather" -> {
+                                                    vm.getOpenWeatherTemp(
+                                                        lat = latitude,
+                                                        lon = longitude
+                                                    )
+                                                    lastUpdate = sdf.format(Date())
+                                                }
+                                                "weatherVisual" -> {
+                                                    vm.getWeatherVisualTemp(
+                                                        lat = latitude,
+                                                        lon = longitude
+                                                    )
+                                                    lastUpdate = sdf.format(Date())
+                                                }
+                                            }
                                         }
                                     }
+                                ) {
+                                    Text(text = stringResource(R.string.button_update))
                                 }
                             }
+                        }
+                        // Иконка
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(8.dp)
+                                .size(100.dp)
                         ) {
-                            Text(text = stringResource(R.string.button_update))
+                            Icon(
+                                contentDescription = "Иконка с погодой",
+                                painter = painterResource(image),
+                                tint = Color.Unspecified
+
+                            )
+                        }
+
+                    }
+                }
+                Box(
+                    contentAlignment = Alignment.BottomCenter,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+
+                    Row {
+                        Row {
+                            Checkbox(
+                                checked = checkedStateUsa.value,
+                                onCheckedChange = {
+                                    config.setLocale(Locale("en"))
+                                    resources.updateConfiguration(
+                                        context.resources.configuration,
+                                        resources.displayMetrics
+                                    )
+                                    checkedStateUsa.value = it
+                                    checkedStateRu.value = false
+
+
+                                },
+                            )
+                            Icon(
+                                painter = painterResource(R.drawable.flag_usa),
+                                contentDescription = "Кнопка с иконкой США",
+                                tint = Color.Unspecified
+                            )
+
+
+                        }
+                        Row {
+                            Checkbox(
+                                checked = checkedStateRu.value,
+                                onCheckedChange = {
+                                    config.setLocale(Locale("ru"))
+                                    resources.updateConfiguration(
+                                        context.resources.configuration,
+                                        resources.displayMetrics
+                                    )
+                                    checkedStateRu.value = it
+                                    checkedStateUsa.value = false
+                                },
+                            )
+                            Icon(
+                                painter = painterResource(R.drawable.flag_russia),
+                                contentDescription = "Кнопка с иконкой России",
+                                tint = Color.Unspecified
+                            )
                         }
                     }
                 }
-                // Иконка
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(8.dp)
-                        .size(100.dp)
-                ) {
-                    Icon(
-                        contentDescription = "Иконка с погодой",
-                        painter = painterResource(image),
-                        tint = Color.Unspecified
-
-                    )
-                }
-
             }
         }
-        Box(
-            contentAlignment = Alignment.BottomCenter,
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-
-            Row {
-                Row {
-                    Checkbox(
-                        checked = checkedStateUsa.value,
-                        onCheckedChange = {
-                            config.setLocale(Locale("en"))
-                            resources.updateConfiguration(
-                                context.resources.configuration,
-                                resources.displayMetrics
-                            )
-                            checkedStateUsa.value = it
-                            checkedStateRu.value = false
-
-
-                        },
-                    )
-                    Icon(
-                        painter = painterResource(R.drawable.flag_usa),
-                        contentDescription = "Кнопка с иконкой США",
-                        tint = Color.Unspecified
-                    )
-
-
-                }
-                Row {
-                    Checkbox(
-                        checked = checkedStateRu.value,
-                        onCheckedChange = {
-                            config.setLocale(Locale("ru"))
-                            resources.updateConfiguration(
-                                context.resources.configuration,
-                                resources.displayMetrics
-                            )
-                            checkedStateRu.value = it
-                            checkedStateUsa.value = false
-                        },
-                    )
-                    Icon(
-                        painter = painterResource(R.drawable.flag_russia),
-                        contentDescription = "Кнопка с иконкой России",
-                        tint = Color.Unspecified
-                    )
-                }
-            }
-        }
+        PullRefreshIndicator(refreshing, refreshState, Modifier.align(Alignment.TopCenter))
     }
+
+
 }
 
 
